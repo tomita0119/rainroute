@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLoadScript, type Libraries } from "@react-google-maps/api";
 import { TripForm, type WaypointField } from "@/components/TripForm";
@@ -126,7 +127,20 @@ function HomeContent() {
   return (
     <main className="flex min-h-screen w-full flex-col gap-6 p-4 sm:p-8 lg:flex-row lg:items-start">
       <aside className="flex w-full flex-col gap-4 lg:sticky lg:top-8 lg:w-80 lg:shrink-0">
-        <h1 className="text-2xl font-bold">RainRoute</h1>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-2xl font-bold">RainRoute</h1>
+            <Link
+              href="/how-to-use"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 underline dark:text-blue-400"
+            >
+              使い方
+            </Link>
+          </div>
+          <p className="text-sm text-black/60 dark:text-white/60">移動ルート上の雨を、出発前に。</p>
+        </div>
 
         {loadError && <ErrorBanner message="地図の読み込みに失敗しました。APIキー設定を確認してください。" />}
 
