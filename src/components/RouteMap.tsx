@@ -3,13 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { GoogleMap, InfoWindow, Marker, Polyline } from "@react-google-maps/api";
 import { isPrecipitationCode, weatherEmoji } from "@/lib/weather/weatherCode";
-import type { CityWeatherMarker, RiskLevel, RouteResponse } from "@/types/api";
-
-const RISK_COLORS: Record<RiskLevel, string> = {
-  low: "#22c55e",
-  medium: "#eab308",
-  high: "#ef4444",
-};
+import { RISK_COLORS } from "@/lib/weather/riskColors";
+import type { CityWeatherMarker, RouteResponse } from "@/types/api";
 
 const containerStyle = { width: "100%", height: "100%" };
 

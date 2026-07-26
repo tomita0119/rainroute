@@ -15,7 +15,8 @@ import { defaultDepartureTime, toDatetimeLocalValue } from "@/lib/dateTimeLocal"
 import { buildGoogleMapsDirectionsUrl } from "@/lib/google/mapsUrl";
 import type { RouteRequest } from "@/lib/route/schema";
 import { parseTripState, tripStateToUrl } from "@/lib/tripUrl";
-import type { ApiErrorBody, RouteResponse } from "@/types/api";
+import { RISK_COLORS } from "@/lib/weather/riskColors";
+import type { ApiErrorBody, DepartureSuggestion, RouteResponse } from "@/types/api";
 
 const GOOGLE_MAPS_LIBRARIES: Libraries = ["places"];
 
@@ -129,6 +130,12 @@ function HomeContent() {
     });
   }
 
+  function handleSuggestionClick(suggestion: DepartureSuggestion) {
+    if (!lastSearchedTrip) return;
+    setDepartureTime(toDatetimeLocalValue(new Date(suggestion.departureTime)));
+    void executeSearch({ ...lastSearchedTrip, departureTime: suggestion.departureTime });
+  }
+
   async function handleCopyLink() {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -220,6 +227,26 @@ function HomeContent() {
                 </a>
               )}
             </div>
+            {result.departureSuggestions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-black/60 dark:text-white/60">雨を避けられる出発時刻の候補:</span>
+                {result.departureSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.departureTime}
+                    type="button"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="flex items-center gap-1.5 rounded-full border border-black/20 px-3 py-1 dark:border-white/20"
+                  >
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: RISK_COLORS[suggestion.worstRisk] }}
+                      aria-hidden
+                    />
+                    {formatTime(suggestion.departureTime)}
+                  </button>
+                ))}
+              </div>
+            )}
             <RouteMap isLoaded={isLoaded} result={result} />
             <RainLegend />
             <CityWeatherList markers={result.cityMarkers} />

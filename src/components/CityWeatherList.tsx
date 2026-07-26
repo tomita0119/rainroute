@@ -2,13 +2,8 @@
 
 import { useState } from "react";
 import { isPrecipitationCode, weatherEmoji } from "@/lib/weather/weatherCode";
-import type { CityWeatherMarker, RiskLevel } from "@/types/api";
-
-const RISK_COLORS: Record<RiskLevel, string> = {
-  low: "#22c55e",
-  medium: "#eab308",
-  high: "#ef4444",
-};
+import { RISK_COLORS } from "@/lib/weather/riskColors";
+import type { CityWeatherMarker } from "@/types/api";
 
 function formatEta(iso: string): string {
   return new Date(iso).toLocaleString("ja-JP", {

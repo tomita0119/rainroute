@@ -1,6 +1,8 @@
 import type { ForecastBucket, PointForecast } from "@/lib/weather/forecast";
 import type { RiskLevel } from "@/types/api";
 
+export const RISK_RANK: Record<RiskLevel, number> = { low: 0, medium: 1, high: 2 };
+
 const POP_HIGH = 0.6;
 const POP_MEDIUM = 0.3;
 const VOLUME_HIGH_MM = 1.0;

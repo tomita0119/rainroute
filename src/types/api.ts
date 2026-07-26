@@ -38,6 +38,11 @@ export interface CityWeatherMarker {
   hourly: HourlyForecastPoint[]; // surrounding hours, chronological order
 }
 
+export interface DepartureSuggestion {
+  departureTime: string; // ISO 8601
+  worstRisk: RiskLevel;
+}
+
 export interface RouteResponse {
   route: {
     overviewPolyline: string;
@@ -51,6 +56,7 @@ export interface RouteResponse {
     worstSegmentIndex: number | null;
     arrivalTime: string; // ISO 8601
   };
+  departureSuggestions: DepartureSuggestion[];
 }
 
 export type ApiErrorCode = "INVALID_INPUT" | "NO_ROUTE_FOUND" | "UPSTREAM_ERROR" | "INTERNAL_ERROR";

@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 import { DirectionsNoRouteError, DirectionsUpstreamError, fetchDirections } from "@/lib/google/directions";
 import { reverseGeocode } from "@/lib/google/geocoding";
 import { requestSchema } from "@/lib/route/schema";
+import type { TimedPoint } from "@/lib/route/sampling";
 import { buildTimedSamples, pickEvenSubset } from "@/lib/route/sampling";
+import type { PointForecast } from "@/lib/weather/forecast";
 import { WeatherUpstreamError, fetchPointForecasts } from "@/lib/weather/forecast";
-import { evaluateSegmentWeather, getHourlyWindow } from "@/lib/weather/rainRisk";
+import { RISK_RANK, evaluateSegmentWeather, getHourlyWindow } from "@/lib/weather/rainRisk";
 import { describeWeatherCode } from "@/lib/weather/weatherCode";
 import type {
   ApiErrorBody,
   CityWeatherMarker,
+  DepartureSuggestion,
   HourlyForecastPoint,
   RiskLevel,
   RouteResponse,
@@ -23,10 +26,73 @@ const MAX_CITY_MARKERS = 15;
 // How many hours before/after a marker's ETA to include in its detail view.
 const HOURLY_WINDOW_RADIUS_HOURS = 3;
 
-const RISK_RANK: Record<RiskLevel, number> = { low: 0, medium: 1, high: 2 };
+// Departure-time suggestions: how far around the requested time to search,
+// at what resolution, how many to surface, and how far apart they must be
+// so the list isn't three near-identical adjacent hours.
+const SUGGESTION_WINDOW_HOURS = 24;
+const SUGGESTION_STEP_SECONDS = 60 * 60;
+const MAX_SUGGESTIONS = 3;
+const MIN_SUGGESTION_SPACING_SECONDS = 2 * 60 * 60;
 
 function errorResponse(status: number, body: ApiErrorBody) {
   return NextResponse.json(body, { status });
+}
+
+function worstRiskAt(samples: TimedPoint[], forecasts: PointForecast[], departureUnixSeconds: number): RiskLevel {
+  let worst: RiskLevel = "low";
+  for (let i = 0; i < samples.length; i++) {
+    const etaUnixSeconds = departureUnixSeconds + Math.round(samples[i].etaSeconds);
+    const { risk } = evaluateSegmentWeather(forecasts[i], etaUnixSeconds);
+    if (RISK_RANK[risk] > RISK_RANK[worst]) worst = risk;
+  }
+  return worst;
+}
+
+// Tries hourly-stepped candidate departure times within ±SUGGESTION_WINDOW_HOURS
+// of the requested time (clipped to not be in the past), reusing the
+// already-fetched samples/forecasts — no network calls, and no reverseGeocode.
+// Only candidates strictly better than the actual search's worst risk qualify;
+// up to MAX_SUGGESTIONS are kept, ranked by risk then by closeness to the
+// requested time with MIN_SUGGESTION_SPACING_SECONDS between picks, and
+// finally re-sorted chronologically for display.
+function computeDepartureSuggestions(
+  samples: TimedPoint[],
+  forecasts: PointForecast[],
+  requestedDepartureUnixSeconds: number,
+  currentWorstRisk: RiskLevel
+): DepartureSuggestion[] {
+  const nowUnixSeconds = Math.floor(Date.now() / 1000);
+  const candidates: { departureUnixSeconds: number; worstRisk: RiskLevel; timeDistance: number }[] = [];
+
+  for (let hourOffset = -SUGGESTION_WINDOW_HOURS; hourOffset <= SUGGESTION_WINDOW_HOURS; hourOffset++) {
+    if (hourOffset === 0) continue; // same as the requested time; can never be "strictly better"
+    const departureUnixSeconds = requestedDepartureUnixSeconds + hourOffset * SUGGESTION_STEP_SECONDS;
+    if (departureUnixSeconds < nowUnixSeconds) continue;
+
+    const worstRisk = worstRiskAt(samples, forecasts, departureUnixSeconds);
+    if (RISK_RANK[worstRisk] >= RISK_RANK[currentWorstRisk]) continue;
+
+    candidates.push({
+      departureUnixSeconds,
+      worstRisk,
+      timeDistance: Math.abs(departureUnixSeconds - requestedDepartureUnixSeconds),
+    });
+  }
+
+  candidates.sort((a, b) => RISK_RANK[a.worstRisk] - RISK_RANK[b.worstRisk] || a.timeDistance - b.timeDistance);
+
+  const picked: typeof candidates = [];
+  for (const candidate of candidates) {
+    if (picked.length >= MAX_SUGGESTIONS) break;
+    const tooClose = picked.some(
+      (p) => Math.abs(p.departureUnixSeconds - candidate.departureUnixSeconds) < MIN_SUGGESTION_SPACING_SECONDS
+    );
+    if (!tooClose) picked.push(candidate);
+  }
+
+  return picked
+    .sort((a, b) => a.departureUnixSeconds - b.departureUnixSeconds)
+    .map((c) => ({ departureTime: new Date(c.departureUnixSeconds * 1000).toISOString(), worstRisk: c.worstRisk }));
 }
 
 export async function POST(request: Request) {
@@ -47,6 +113,18 @@ export async function POST(request: Request) {
 
   const { origin, destination, waypoints, departureTime, avoidTolls } = parsed.data;
   const departureUnixSeconds = Math.floor(new Date(departureTime).getTime() / 1000);
+
+  // Usage history: visible in Vercel's Runtime Logs. Logged as soon as the
+  // request is validated (not gated on the upstream calls below succeeding)
+  // so a search still shows up even if Directions/Open-Meteo later fail.
+  console.log(
+    JSON.stringify({
+      event: "route_search",
+      origin: origin.label,
+      destination: destination.label,
+      departureTime,
+    })
+  );
 
   let directions;
   try {
@@ -112,6 +190,12 @@ export async function POST(request: Request) {
     return worstIdx;
   }, null);
 
+  const currentWorstRisk: RiskLevel = worstSegmentIndex !== null ? segments[worstSegmentIndex].risk : "low";
+  const departureSuggestions: DepartureSuggestion[] =
+    currentWorstRisk !== "low"
+      ? computeDepartureSuggestions(samples, forecasts, departureUnixSeconds, currentWorstRisk)
+      : [];
+
   // Reuse the already-fetched forecasts instead of issuing new weather
   // calls. The first/last points reuse the user-entered place labels (more
   // accurate than reverse geocoding a raw coordinate); reverse geocoding
@@ -168,6 +252,7 @@ export async function POST(request: Request) {
       worstSegmentIndex,
       arrivalTime: new Date(departureUnixSeconds * 1000 + directions.durationSeconds * 1000).toISOString(),
     },
+    departureSuggestions,
   };
 
   return NextResponse.json(response);
