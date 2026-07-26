@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GoogleMap, InfoWindow, Marker, Polyline } from "@react-google-maps/api";
-import { isPrecipitationCode } from "@/lib/weather/weatherCode";
+import { isPrecipitationCode, weatherEmoji } from "@/lib/weather/weatherCode";
 import type { CityWeatherMarker, RiskLevel, RouteResponse } from "@/types/api";
 
 const RISK_COLORS: Record<RiskLevel, string> = {
@@ -70,7 +70,15 @@ export function RouteMap({ isLoaded, result }: RouteMapProps) {
           <Marker
             key={index}
             position={{ lat: marker.lat, lng: marker.lng }}
-            label={{ text: `${Math.round(marker.temperatureC)}°`, fontSize: "11px" }}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 16,
+              fillColor: "#ffffff",
+              fillOpacity: 1,
+              strokeColor: "#1f2937",
+              strokeWeight: 2,
+            }}
+            label={{ text: weatherEmoji(marker.weatherCode), fontSize: "14px" }}
             onClick={() => setActiveMarker(marker)}
           />
         ))}
