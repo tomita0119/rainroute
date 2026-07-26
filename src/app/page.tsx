@@ -99,6 +99,11 @@ function HomeContent() {
       setResult(body as RouteResponse);
       setLastSearchedTrip(payload);
       router.replace(tripStateToUrl(payload), { scroll: false });
+      // router.replace's own scroll handling only fires on navigation, not on
+      // this in-place result swap, so a search fired from a scrolled-down
+      // position (e.g. clicking a departure-time suggestion) would otherwise
+      // leave the new banner/map misaligned with the old scroll offset.
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setError("通信エラーが発生しました。ネットワーク接続を確認してください。");
     } finally {
@@ -189,65 +194,86 @@ function HomeContent() {
       <section className="flex w-full flex-1 flex-col gap-4">
         {result && (
           <>
-            <div className="flex flex-wrap items-center gap-3">
-              <div
-                className={`flex-1 rounded-lg border px-4 py-3 text-sm ${
-                  result.summary.hasRainRisk
-                    ? "border-yellow-400 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950"
-                    : "border-green-400 bg-green-50 dark:border-green-700 dark:bg-green-950"
-                }`}
-              >
-                {result.summary.hasRainRisk
-                  ? `ルート上で雨に降られる可能性があります（到着予定: ${formatTime(result.summary.arrivalTime)}）`
-                  : `ルート上で雨に降られる心配はなさそうです（到着予定: ${formatTime(result.summary.arrivalTime)}）`}
-                <div className="mt-1 text-black/60 dark:text-white/60">
-                  総距離 {formatDistance(result.route.distanceMeters)}・所要時間 {formatDuration(result.route.durationSeconds)}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                className="rounded border border-black/20 px-3 py-2 text-sm dark:border-white/20"
-              >
-                {copied ? "コピーしました" : "共有リンクをコピー"}
-              </button>
+            {/* Fixed to one viewport (minus <main>'s p-8 padding) at the lg
+                breakpoint so the banner, suggestion pills, and map — origin
+                to destination — are all visible without scrolling; the map
+                takes whatever space the (variable-height) rows above it
+                leave via flex-1. */}
+            <div className="flex flex-col gap-4 lg:h-[calc(100vh-4rem)]">
               {lastSearchedTrip && (
-                <a
-                  href={buildGoogleMapsDirectionsUrl(
-                    lastSearchedTrip.origin,
-                    lastSearchedTrip.destination,
-                    lastSearchedTrip.waypoints,
-                    lastSearchedTrip.avoidTolls
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                  <span className="flex items-center gap-1">
+                    <span className="h-2.5 w-2.5 rounded-full border-2 border-green-600" aria-hidden />
+                    {lastSearchedTrip.origin.label}
+                  </span>
+                  <span className="text-black/40 dark:text-white/40">→</span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-2.5 w-2.5 rounded-full border-2 border-red-600" aria-hidden />
+                    {lastSearchedTrip.destination.label}
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-3">
+                <div
+                  className={`flex-1 rounded-lg border px-4 py-3 text-sm ${
+                    result.summary.hasRainRisk
+                      ? "border-yellow-400 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950"
+                      : "border-green-400 bg-green-50 dark:border-green-700 dark:bg-green-950"
+                  }`}
+                >
+                  {result.summary.hasRainRisk
+                    ? `ルート上で雨に降られる可能性があります（到着予定: ${formatTime(result.summary.arrivalTime)}）`
+                    : `ルート上で雨に降られる心配はなさそうです（到着予定: ${formatTime(result.summary.arrivalTime)}）`}
+                  <div className="mt-1 text-black/60 dark:text-white/60">
+                    総距離 {formatDistance(result.route.distanceMeters)}・所要時間{" "}
+                    {formatDuration(result.route.durationSeconds)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
                   className="rounded border border-black/20 px-3 py-2 text-sm dark:border-white/20"
                 >
-                  Googleマップで開く
-                </a>
-              )}
-            </div>
-            {result.departureSuggestions.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-black/60 dark:text-white/60">雨を避けられる出発時刻の候補:</span>
-                {result.departureSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion.departureTime}
-                    type="button"
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="flex items-center gap-1.5 rounded-full border border-black/20 px-3 py-1 dark:border-white/20"
+                  {copied ? "コピーしました" : "共有リンクをコピー"}
+                </button>
+                {lastSearchedTrip && (
+                  <a
+                    href={buildGoogleMapsDirectionsUrl(
+                      lastSearchedTrip.origin,
+                      lastSearchedTrip.destination,
+                      lastSearchedTrip.waypoints,
+                      lastSearchedTrip.avoidTolls
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded border border-black/20 px-3 py-2 text-sm dark:border-white/20"
                   >
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: RISK_COLORS[suggestion.worstRisk] }}
-                      aria-hidden
-                    />
-                    {formatTime(suggestion.departureTime)}
-                  </button>
-                ))}
+                    Googleマップで開く
+                  </a>
+                )}
               </div>
-            )}
-            <RouteMap isLoaded={isLoaded} result={result} />
+              {result.departureSuggestions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-black/60 dark:text-white/60">雨を避けられる出発時刻の候補:</span>
+                  {result.departureSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.departureTime}
+                      type="button"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="flex items-center gap-1.5 rounded-full border border-black/20 px-3 py-1 dark:border-white/20"
+                    >
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: RISK_COLORS[suggestion.worstRisk] }}
+                        aria-hidden
+                      />
+                      {formatTime(suggestion.departureTime)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <RouteMap isLoaded={isLoaded} result={result} />
+            </div>
             <RainLegend />
             <CityWeatherList markers={result.cityMarkers} />
           </>
