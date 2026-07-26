@@ -126,7 +126,7 @@ function HomeContent() {
   return (
     <main className="flex min-h-screen w-full flex-col gap-6 p-4 sm:p-8 lg:flex-row lg:items-start">
       <aside className="flex w-full flex-col gap-4 lg:sticky lg:top-8 lg:w-80 lg:shrink-0">
-        <h1 className="text-2xl font-bold">ツーリング雨予報チェッカー</h1>
+        <h1 className="text-2xl font-bold">RainRoute</h1>
 
         {loadError && <ErrorBanner message="地図の読み込みに失敗しました。APIキー設定を確認してください。" />}
 

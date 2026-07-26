@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ツーリング雨予報チェッカー",
-  description: "バイクツーリングのルート上で雨に降られるかを事前にチェックするアプリ",
+  title: "RainRoute",
+  description: "移動ルート上で雨に降られるかを事前にチェックするアプリ",
 };
 
 export default function RootLayout({
