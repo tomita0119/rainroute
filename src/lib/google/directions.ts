@@ -36,13 +36,17 @@ export interface DirectionsResult {
 export async function fetchDirections(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
-  waypoints: { lat: number; lng: number }[] = []
+  waypoints: { lat: number; lng: number }[] = [],
+  avoidTolls = false
 ): Promise<DirectionsResult> {
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
   url.searchParams.set("origin", `${origin.lat},${origin.lng}`);
   url.searchParams.set("destination", `${destination.lat},${destination.lng}`);
   url.searchParams.set("mode", "driving");
   url.searchParams.set("key", env.googleMapsServerApiKey);
+  if (avoidTolls) {
+    url.searchParams.set("avoid", "tolls");
+  }
 
   // No "via:" prefix and no "optimize:true" — each waypoint should become a
   // real leg boundary (so sampling.ts's per-leg accumulation applies) and the

@@ -16,10 +16,12 @@ interface TripFormProps {
   destination: SelectedPlace | null;
   waypoints: WaypointField[];
   departureTime: string;
+  avoidTolls: boolean;
   onOriginChange: (place: SelectedPlace | null) => void;
   onDestinationChange: (place: SelectedPlace | null) => void;
   onWaypointsChange: (waypoints: WaypointField[]) => void;
   onDepartureTimeChange: (value: string) => void;
+  onAvoidTollsChange: (value: boolean) => void;
   onSubmit: () => void;
 }
 
@@ -30,10 +32,12 @@ export function TripForm({
   destination,
   waypoints,
   departureTime,
+  avoidTolls,
   onOriginChange,
   onDestinationChange,
   onWaypointsChange,
   onDepartureTimeChange,
+  onAvoidTollsChange,
   onSubmit,
 }: TripFormProps) {
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -124,6 +128,15 @@ export function TripForm({
           className="rounded border border-black/20 px-3 py-2 dark:border-white/20 dark:bg-black/20"
           required
         />
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={avoidTolls}
+          onChange={(event) => onAvoidTollsChange(event.target.checked)}
+          className="h-4 w-4"
+        />
+        有料道路を使わない
       </label>
       {validationError && <p className="text-sm text-red-600">{validationError}</p>}
       <button

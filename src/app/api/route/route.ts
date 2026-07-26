@@ -45,12 +45,12 @@ export async function POST(request: Request) {
     });
   }
 
-  const { origin, destination, waypoints, departureTime } = parsed.data;
+  const { origin, destination, waypoints, departureTime, avoidTolls } = parsed.data;
   const departureUnixSeconds = Math.floor(new Date(departureTime).getTime() / 1000);
 
   let directions;
   try {
-    directions = await fetchDirections(origin, destination, waypoints);
+    directions = await fetchDirections(origin, destination, waypoints, avoidTolls);
   } catch (error) {
     if (error instanceof DirectionsNoRouteError) {
       return errorResponse(422, { error: "NO_ROUTE_FOUND", message: error.message });

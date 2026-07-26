@@ -28,6 +28,19 @@ function formatTime(iso: string): string {
   });
 }
 
+function formatDistance(meters: number): string {
+  return `${(meters / 1000).toLocaleString("ja-JP", { maximumFractionDigits: 1 })} km`;
+}
+
+function formatDuration(seconds: number): string {
+  const totalMinutes = Math.round(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}分`;
+  if (minutes === 0) return `${hours}時間`;
+  return `${hours}時間${minutes}分`;
+}
+
 export default function Home() {
   return (
     <Suspense fallback={<LoadingState />}>
@@ -56,6 +69,7 @@ function HomeContent() {
   const [departureTime, setDepartureTime] = useState(() =>
     restoredTrip ? toDatetimeLocalValue(new Date(restoredTrip.departureTime)) : defaultDepartureTime()
   );
+  const [avoidTolls, setAvoidTolls] = useState(() => restoredTrip?.avoidTolls ?? false);
 
   const [result, setResult] = useState<RouteResponse | null>(null);
   // Tracks the exact payload that produced `result`, kept separate from the
@@ -111,6 +125,7 @@ function HomeContent() {
       destination,
       waypoints: waypoints.map((w) => w.place!),
       departureTime: new Date(departureTime).toISOString(),
+      avoidTolls,
     });
   }
 
@@ -151,10 +166,12 @@ function HomeContent() {
           destination={destination}
           waypoints={waypoints}
           departureTime={departureTime}
+          avoidTolls={avoidTolls}
           onOriginChange={setOrigin}
           onDestinationChange={setDestination}
           onWaypointsChange={setWaypoints}
           onDepartureTimeChange={setDepartureTime}
+          onAvoidTollsChange={setAvoidTolls}
           onSubmit={handleFormSubmit}
         />
 
@@ -176,6 +193,9 @@ function HomeContent() {
                 {result.summary.hasRainRisk
                   ? `ルート上で雨に降られる可能性があります（到着予定: ${formatTime(result.summary.arrivalTime)}）`
                   : `ルート上で雨に降られる心配はなさそうです（到着予定: ${formatTime(result.summary.arrivalTime)}）`}
+                <div className="mt-1 text-black/60 dark:text-white/60">
+                  総距離 {formatDistance(result.route.distanceMeters)}・所要時間 {formatDuration(result.route.durationSeconds)}
+                </div>
               </div>
               <button
                 type="button"
@@ -189,7 +209,8 @@ function HomeContent() {
                   href={buildGoogleMapsDirectionsUrl(
                     lastSearchedTrip.origin,
                     lastSearchedTrip.destination,
-                    lastSearchedTrip.waypoints
+                    lastSearchedTrip.waypoints,
+                    lastSearchedTrip.avoidTolls
                   )}
                   target="_blank"
                   rel="noopener noreferrer"

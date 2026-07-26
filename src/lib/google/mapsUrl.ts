@@ -5,7 +5,8 @@
 export function buildGoogleMapsDirectionsUrl(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
-  waypoints: { lat: number; lng: number }[]
+  waypoints: { lat: number; lng: number }[],
+  avoidTolls = false
 ): string {
   const url = new URL("https://www.google.com/maps/dir/");
   url.searchParams.set("api", "1");
@@ -15,5 +16,8 @@ export function buildGoogleMapsDirectionsUrl(
     url.searchParams.set("waypoints", waypoints.map((w) => `${w.lat},${w.lng}`).join("|"));
   }
   url.searchParams.set("travelmode", "driving");
+  if (avoidTolls) {
+    url.searchParams.set("avoid", "tolls");
+  }
   return url.toString();
 }

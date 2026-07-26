@@ -16,6 +16,7 @@ export const requestSchema = z.object({
   destination: placeSchema,
   waypoints: z.array(placeSchema).max(MAX_WAYPOINTS).optional().default([]),
   departureTime: z.iso.datetime({ offset: true }),
+  avoidTolls: z.boolean().optional().default(false),
 });
 
 export type PlaceInput = z.infer<typeof placeSchema>;
