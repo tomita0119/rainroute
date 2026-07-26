@@ -3,7 +3,7 @@ import { DirectionsNoRouteError, DirectionsUpstreamError, fetchDirections } from
 import { reverseGeocode } from "@/lib/google/geocoding";
 import { requestSchema } from "@/lib/route/schema";
 import { buildTimedSamples, pickEvenSubset } from "@/lib/route/sampling";
-import { WeatherUpstreamError, fetchPointForecast } from "@/lib/weather/forecast";
+import { WeatherUpstreamError, fetchPointForecasts } from "@/lib/weather/forecast";
 import { evaluateSegmentWeather, getHourlyWindow } from "@/lib/weather/rainRisk";
 import { describeWeatherCode } from "@/lib/weather/weatherCode";
 import type {
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
   let forecasts;
   try {
-    forecasts = await Promise.all(samples.map((sample) => fetchPointForecast(sample.lat, sample.lng)));
+    forecasts = await fetchPointForecasts(samples.map((sample) => ({ lat: sample.lat, lng: sample.lng })));
   } catch (error) {
     if (error instanceof WeatherUpstreamError) {
       return errorResponse(502, { error: "UPSTREAM_ERROR", provider: "open-meteo", message: error.message });
